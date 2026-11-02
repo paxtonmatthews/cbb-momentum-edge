@@ -72,6 +72,8 @@ export function normalizeGame(d, league) {
     name: c.team.displayName,
     short: c.team.shortDisplayName || c.team.location || c.team.name,
     abbr: c.team.abbreviation,
+    location: c.team.location || '',
+    nickname: c.team.name || '',
     color: '#' + (c.team.color || '6b7280'),
     alt: '#' + (c.team.alternateColor || 'd1d5db'),
     logo: c.team.logos?.[0]?.href || c.team.logo || '',

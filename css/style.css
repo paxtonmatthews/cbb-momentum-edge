@@ -164,3 +164,15 @@ footer { max-width: 1100px; margin: 1rem auto 2rem; padding: 0 16px; font-size: 
   .topbar { flex-wrap: wrap; row-gap: .4rem; }
   nav { gap: 1rem; width: 100%; overflow-x: auto; }
 }
+
+/* screenshot reader */
+.dropzone { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 10px; padding: .6rem .75rem; margin-bottom: .75rem; }
+.dropzone.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.shot-btn { cursor: pointer; background: var(--accent); color: #fff; font-weight: 700; border-radius: 8px; padding: .45rem .75rem; font-size: .9rem; }
+.shot-btn:focus-within { outline: 2px solid var(--text); }
+#shot-status { margin-bottom: .75rem; }
+#shot-status ul { margin: .35rem 0; padding-left: 1.1rem; }
+#shot-status details { margin-top: .35rem; }
+#shot-status pre { white-space: pre-wrap; font-size: .75rem; max-height: 180px; overflow: auto; background: var(--panel-2); padding: .5rem; border-radius: 6px; }
+.lines input.filled { border-color: var(--good); }
+.lines input.guess { border-color: var(--warn); }

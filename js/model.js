@@ -6,6 +6,7 @@ export const CONFIG = {
   marginSDFloor: 1,      // extra margin uncertainty in-game (backtest fit)
   totalSD: 13,           // SD of the final total, random-walk part (backtest fit)
   totalSDFloor: 4,       // extra total uncertainty in-game (backtest fit; pregame SD ≈ 17)
+  teamSDScale: 1.08,     // team-total uncertainty multiplier (240-game backtest: 1.0 was ~8% overconfident)
   halfDiff: 6,           // extra late-game points; research says 2H ≈ 1H + 8, backtest fits 6 in the final minutes
   foulWindow: 4,         // minutes at the end of regulation where the extra points land
   foulFullMargin: 8,     // margin at or under which teams foul fully
@@ -40,6 +41,8 @@ export function fairLines(a) {
     total: half(a.proj.total),
     mlHome: probToAmerican(a.proj.winHome),
     mlAway: probToAmerican(1 - a.proj.winHome),
+    ttHome: half(a.proj.homeScore),
+    ttAway: half(a.proj.awayScore),
   };
 }
 
@@ -195,6 +198,9 @@ export function analyze(game, opts) {
   const sdM = Math.max(cfg.marginSD * frac + cfg.marginSDFloor * fade, 0.01);
   const sdT = Math.max(cfg.totalSD * frac + cfg.totalSDFloor * fade, 0.01);
   const winHome = rem === 0 ? (curMargin > 0 ? 1 : curMargin < 0 ? 0 : 0.5) : normCdf(projMargin / sdM);
+  // Each team's score = (total ± margin) / 2. Total and margin errors are close to
+  // uncorrelated, so a team score's SD is half the combined SD (checked in the backtest).
+  const sdTeam = Math.max(cfg.teamSDScale * 0.5 * Math.sqrt(sdT * sdT + sdM * sdM), 0.01);
 
   const espnWP = replay ? game.wpByPlay[last.id] : game.wpLatest;
 
@@ -203,7 +209,7 @@ export function analyze(game, opts) {
     split, luck, mom, runs: runs(plays, nowT), plays,
     pregame: opts.pregame,
     proj: {
-      total: projTotal, margin: projMargin, sdM, sdT, winHome,
+      total: projTotal, margin: projMargin, sdM, sdT, sdTeam, winHome,
       homeScore: (projTotal + projMargin) / 2, awayScore: (projTotal - projMargin) / 2,
       paceRatio, driftRate, restore, tilt,
     },
@@ -214,11 +220,13 @@ export function analyze(game, opts) {
 // ---------- bets ----------
 
 /**
- * lines: {spreadHome, spreadHomeOdds, spreadAwayOdds, total, overOdds, underOdds, mlHome, mlAway}
+ * lines: {spreadHome, spreadHomeOdds, spreadAwayOdds, total, overOdds, underOdds, mlHome, mlAway,
+ *         ttHome, ttHomeOverOdds, ttHomeUnderOdds, ttAway, ttAwayOverOdds, ttAwayUnderOdds}
+ * Markets: moneyline, spread, game total, and each team's total.
  * Returns every option ranked by expected value, plus the recommendation.
  */
 export function evaluateBets(a, lines, names, cfg = CONFIG) {
-  const { margin, total, sdM, sdT, winHome } = a.proj;
+  const { margin, total, sdM, sdT, sdTeam, winHome, homeScore, awayScore } = a.proj;
   const opts = [];
   const add = (market, side, label, line, odds, p) => {
     if (odds == null || !isFinite(odds) || p == null || !isFinite(p)) return;
@@ -242,6 +250,13 @@ export function evaluateBets(a, lines, names, cfg = CONFIG) {
   }
   if (isFinite(lines.mlHome)) add('moneyline', 'home', `${names.home} ML`, null, lines.mlHome, winHome);
   if (isFinite(lines.mlAway)) add('moneyline', 'away', `${names.away} ML`, null, lines.mlAway, 1 - winHome);
+  for (const [side, proj, key] of [['home', homeScore, 'ttHome'], ['away', awayScore, 'ttAway']]) {
+    const line = lines[key];
+    if (!isFinite(line)) continue;
+    const pOver = normCdf((proj - line) / sdTeam);
+    add('teamtotal', `${side}-over`, `${names[side]} team total Over ${line}`, line, lines[`${key}OverOdds`] ?? -110, pOver);
+    add('teamtotal', `${side}-under`, `${names[side]} team total Under ${line}`, line, lines[`${key}UnderOdds`] ?? -110, 1 - pOver);
+  }
 
   opts.sort((x, y) => y.ev - x.ev);
   const best = opts[0] || null;
@@ -250,12 +265,16 @@ export function evaluateBets(a, lines, names, cfg = CONFIG) {
   return { options: opts, best, verdict };
 }
 
-/** Grade a bet against the final score (used when replaying finished games). */
-export function gradeBet(bet, finalMargin, finalTotal) {
+/** Grade a bet against the final score (used when replaying finished games). final = {home, away} */
+export function gradeBet(bet, final) {
+  const finalMargin = final.home - final.away, finalTotal = final.home + final.away;
   let x;
   if (bet.market === 'spread') x = bet.side === 'home' ? finalMargin + bet.line : -finalMargin + bet.line;
   else if (bet.market === 'total') x = bet.side === 'over' ? finalTotal - bet.line : bet.line - finalTotal;
-  else x = bet.side === 'home' ? finalMargin : -finalMargin;
+  else if (bet.market === 'teamtotal') {
+    const [team, ou] = bet.side.split('-');
+    x = ou === 'over' ? final[team] - bet.line : bet.line - final[team];
+  } else x = bet.side === 'home' ? finalMargin : -finalMargin;
   return x > 0 ? 'win' : x < 0 ? 'loss' : 'push';
 }
 

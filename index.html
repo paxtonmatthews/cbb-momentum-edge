@@ -59,8 +59,16 @@
         <div class="card">
           <div class="card-head">
             <h2>Lines</h2>
-            <button id="lines-reset" type="button" class="ghost">Reset to ESPN</button>
+            <button id="lines-reset" type="button" class="ghost">Clear lines</button>
           </div>
+          <div id="shot-drop" class="dropzone">
+            <label class="shot-btn">
+              <input id="shot-input" type="file" accept="image/*" hidden>
+              📷 Read odds from a screenshot
+            </label>
+            <span class="muted small">or paste (Ctrl+V) / drop an image here</span>
+          </div>
+          <div id="shot-status" class="small" hidden></div>
           <p id="lines-note" class="note"></p>
           <form id="lines" class="lines"></form>
         </div>

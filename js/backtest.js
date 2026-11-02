@@ -38,7 +38,7 @@ async function loadGames(league, dates, max, log) {
 export function evaluate(games, cfg = CONFIG) {
   const rows = [];
   for (const cp of CHECKPOINTS) {
-    const err = { m: [], t: [] }; let n = 0, in80m = 0, in80t = 0, brier = 0, brierE = 0, nE = 0;
+    const err = { m: [], t: [] }; let n = 0, in80m = 0, in80t = 0, in80tt = 0, ntt = 0, brier = 0, brierE = 0, nE = 0;
     for (const g of games) {
       const scale = g.regMinutes / 40; const at = cp * scale;
       let idx = -1;
@@ -50,12 +50,13 @@ export function evaluate(games, cfg = CONFIG) {
       err.m.push(fm - a.proj.margin); err.t.push(ft - a.proj.total);
       if (Math.abs((fm - a.proj.margin) / a.proj.sdM) < 1.2816) in80m++;
       if (Math.abs((ft - a.proj.total) / a.proj.sdT) < 1.2816) in80t++;
+      for (const [sc, pr] of [[g.home.score, a.proj.homeScore], [g.away.score, a.proj.awayScore]]) { ntt++; if (Math.abs((sc - pr) / a.proj.sdTeam) < 1.2816) in80tt++; }
       const y = fm > 0 ? 1 : 0; brier += (a.proj.winHome - y) ** 2; n++;
       if (a.espnWP != null) { brierE += (a.espnWP - y) ** 2; nE++; }
     }
     const rmse = (x) => Math.sqrt(x.reduce((s, v) => s + v * v, 0) / x.length);
     const mean = (x) => x.reduce((s, v) => s + v, 0) / x.length;
-    rows.push({ cp, n, in80m: in80m / n, in80t: in80t / n, marginRMSE: rmse(err.m), totalRMSE: rmse(err.t), totalBias: mean(err.t), brier: brier / n, brierESPN: nE ? brierE / nE : null });
+    rows.push({ cp, n, in80m: in80m / n, in80t: in80t / n, in80tt: in80tt / ntt, marginRMSE: rmse(err.m), totalRMSE: rmse(err.t), totalBias: mean(err.t), brier: brier / n, brierESPN: nE ? brierE / nE : null });
   }
   return rows;
 }
@@ -72,8 +73,8 @@ async function run(e) {
     if (!games.length) { log('No finished games with betting lines in that range.'); return; }
     const rows = evaluate(games);
     log(`Done: ${games.length} games.`);
-    $('#results').innerHTML = `<thead><tr><th>Minute</th><th>Games</th><th>Margin in 80% range</th><th>Total in 80% range</th><th>Margin error</th><th>Total error</th><th>Total bias</th><th>Brier (model)</th><th>Brier (ESPN)</th></tr></thead><tbody>` +
-      rows.map((r) => `<tr><td>${r.cp}</td><td>${r.n}</td><td>${p(r.in80m)}</td><td>${p(r.in80t)}</td><td>±${f(r.marginRMSE)}</td><td>±${f(r.totalRMSE)}</td><td>${r.totalBias > 0 ? '+' : ''}${f(r.totalBias)}</td><td>${f(r.brier, 3)}</td><td>${f(r.brierESPN, 3)}</td></tr>`).join('') + '</tbody>';
+    $('#results').innerHTML = `<thead><tr><th>Minute</th><th>Games</th><th>Margin in 80% range</th><th>Total in 80% range</th><th>Team total in 80% range</th><th>Margin error</th><th>Total error</th><th>Total bias</th><th>Brier (model)</th><th>Brier (ESPN)</th></tr></thead><tbody>` +
+      rows.map((r) => `<tr><td>${r.cp}</td><td>${r.n}</td><td>${p(r.in80m)}</td><td>${p(r.in80t)}</td><td>${p(r.in80tt)}</td><td>±${f(r.marginRMSE)}</td><td>±${f(r.totalRMSE)}</td><td>${r.totalBias > 0 ? '+' : ''}${f(r.totalBias)}</td><td>${f(r.brier, 3)}</td><td>${f(r.brierESPN, 3)}</td></tr>`).join('') + '</tbody>';
   } catch (err) {
     log(`Failed: ${err.message}`);
   } finally { btn.disabled = false; }

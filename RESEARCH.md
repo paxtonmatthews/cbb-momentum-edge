@@ -85,6 +85,8 @@ How to read this:
 - **Totals run a little low early** on the held-out set. Treat early-game Over/Under picks with extra caution.
 - **The pregame spread is hard to beat:** its error SD was 10.9 points, matching the research.
 
+**Team totals** (240 games, January–February 2026): each team's final score landed inside the model's 80% range **77–85%** of the time at the same checkpoints. That was with a multiplier of 1.0. It's now 1.08 (`teamSDScale`) to fix slight overconfidence early in games.
+
 **What this backtest does *not* show:** that the model makes money. That would need historical **live** odds, which aren't in the free ESPN feed. Matching ESPN's win probability is a sanity check, not a betting edge. The edge has to come from live lines that overreact. Track your own results.
 
 Re-run it any time on the site's **Backtest** page, or tune the numbers in `CONFIG` at the top of `js/model.js`.

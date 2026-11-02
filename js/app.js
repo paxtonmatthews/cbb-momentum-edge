@@ -4,6 +4,7 @@ import {
 import {
   CONFIG, analyze, evaluateBets, gradeBet, explain, fairLines, fmtLine, fmtOdds,
 } from './model.js';
+import { readImage, parseOdds } from './oddsocr.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -73,6 +74,12 @@ const LINE_FIELDS = [
   ['underOdds', () => 'Under odds'],
   ['mlHome', (g) => `${g.home.short} moneyline`],
   ['mlAway', (g) => `${g.away.short} moneyline`],
+  ['ttHome', (g) => `${g.home.short} team total`],
+  ['ttHomeOverOdds', (g) => `${g.home.short} TT over odds`],
+  ['ttHomeUnderOdds', (g) => `${g.home.short} TT under odds`],
+  ['ttAway', (g) => `${g.away.short} team total`],
+  ['ttAwayOverOdds', (g) => `${g.away.short} TT over odds`],
+  ['ttAwayUnderOdds', (g) => `${g.away.short} TT under odds`],
 ];
 
 function espnLines() {
@@ -81,17 +88,23 @@ function espnLines() {
   for (const [k] of LINE_FIELDS) out[k] = o[k] ?? null;
   return out;
 }
+// Once a game has started, ESPN's (pregame) numbers are stale: only lines the user
+// typed or uploaded are used, and the pregame numbers show as hints.
+const started = () => state.game.status.state !== 'pre';
+const baseLines = () => (started() ? {} : espnLines());
+
 function currentLines() {
-  const l = { ...espnLines(), ...state.lineOverrides };
+  const l = { ...baseLines(), ...state.lineOverrides };
   for (const k in l) l[k] = l[k] == null || l[k] === '' ? NaN : +l[k];
   return l;
 }
 
 function renderLinesForm() {
-  const g = state.game, base = espnLines();
+  const g = state.game, base = baseLines(), espn = espnLines();
   $('#lines').innerHTML = LINE_FIELDS.map(([k, label]) => {
     const v = state.lineOverrides[k] ?? base[k] ?? '';
-    return `<label><span>${esc(label(g))}</span><input name="${k}" type="number" step="0.5" value="${esc(v)}" inputmode="decimal"></label>`;
+    const hint = started() && espn[k] != null ? `pregame ${espn[k]}` : '';
+    return `<label><span>${esc(label(g))}</span><input name="${k}" type="number" step="0.5" value="${esc(v)}" placeholder="${esc(hint)}" inputmode="decimal"></label>`;
   }).join('');
 }
 
@@ -114,6 +127,7 @@ function render() {
   const g = state.game; if (!g) return;
   const c = cfg();
   const a = analyze(g, { cutoff: state.cutoff, pregame: state.pregame, season: state.season, cfg: c });
+  state.lastA = a;
   const names = { home: g.home.short, away: g.away.short };
   const lines = currentLines();
   const bets = evaluateBets(a, lines, names, c);
@@ -175,7 +189,7 @@ function renderBestBet(g, a, bets) {
   const badge = { strong: ['Strong edge', 'good'], lean: ['Lean', 'warn'], pass: ['No edge — pass', 'muted'] }[bets.verdict];
   let graded = '';
   if (a.replay && g.final && bets.verdict !== 'pass') {
-    const r = gradeBet(b, g.final.margin, g.final.total);
+    const r = gradeBet(b, { home: g.home.score, away: g.away.score });
     graded = `<div class="grade ${r}">Result: ${r.toUpperCase()} <span class="muted">(final ${g.away.abbr} ${g.away.score} – ${g.home.abbr} ${g.home.score})</span></div>`;
   }
   const pre = g.status.state === 'pre' && !a.replay ? `<p class="note">The game hasn't started, so the model just mirrors the pregame line. Come back after tip-off.</p>` : '';
@@ -201,6 +215,9 @@ function renderFairLine(g, a) {
       <div><b>${fmtOdds(f.mlAway)}</b><span>${esc(g.away.abbr)} fair ML</span></div>
       <div><b>${f.total}</b><span>fair total</span></div>
       <div><b>${fmtOdds(f.mlHome)}</b><span>${esc(g.home.abbr)} fair ML</span></div>
+      <div><b>${f.ttAway}</b><span>${esc(g.away.abbr)} team total</span></div>
+      <div><b>${fmtLine(f.spreadHome)}</b><span>${esc(g.home.abbr)} fair spread</span></div>
+      <div><b>${f.ttHome}</b><span>${esc(g.home.abbr)} team total</span></div>
     </div>
     <p class="small">This is where the line <i>should</i> be right now. Type your sportsbook's live line into <a href="#lines" id="goto-lines">Lines</a> and the model will name the best bet. If the book's number is far from this one, that's where the value is.</p>`;
   $('#goto-lines').addEventListener('click', (e) => { e.preventDefault(); const i = $('#lines input'); i.scrollIntoView({ behavior: 'smooth', block: 'center' }); i.focus({ preventScroll: true }); });
@@ -337,9 +354,9 @@ function renderLinesNote(g, a) {
   const o = g.odds;
   const edited = Object.keys(state.lineOverrides).length > 0;
   let msg = '';
-  if (!o && !edited) msg = 'ESPN has no line for this game. Enter one from your sportsbook.';
-  else if (edited) msg = 'Using the lines you entered.';
-  else if (a.nowT > 0) msg = `Showing the ${o.provider} pregame line from ESPN. Type over it with your book's current live line to get a pick.`;
+  if (edited) msg = 'Using only the lines you entered or uploaded. Leave a box empty to skip that bet.';
+  else if (started()) msg = `Upload a screenshot of your book's live odds, or type them in. ${o ? 'Gray hints are the pregame line, which is out of date now.' : ''}`;
+  else if (!o) msg = 'ESPN has no line for this game. Upload a screenshot of your book or type the line in.';
   else msg = `${o.provider} pregame line from ESPN.`;
   $('#lines-note').textContent = msg;
 }
@@ -372,6 +389,46 @@ async function loadGames() {
   }
 }
 
+// ---------------- sportsbook screenshot ----------------
+
+async function readScreenshot(file) {
+  if (!state.game || !file || !file.type.startsWith('image/')) return;
+  const box = $('#shot-status');
+  box.hidden = false;
+  box.innerHTML = '<span class="muted">Loading text reader… (the first time downloads it, about 10 MB)</span>';
+  try {
+    const ocr = await readImage(file, (p) => { box.innerHTML = `<span class="muted">Reading odds… ${Math.round(p * 100)}%</span>`; });
+    const text = ocr.text;
+    const p = state.lastA?.proj;
+    const { lines, found, guessed } = parseOdds(ocr, state.game, p ? { total: p.total, home: p.homeScore, away: p.awayScore } : {});
+    const keys = Object.keys(lines);
+    // A new screenshot replaces the previous lines
+    state.lineOverrides = {};
+    for (const k of keys) state.lineOverrides[k] = lines[k];
+    renderLinesForm();
+    for (const k of keys) $(`#lines input[name="${k}"]`)?.classList.add(guessed.includes(k) ? 'guess' : 'filled');
+    render();
+    box.innerHTML = keys.length
+      ? `<b class="pos">Found ${keys.length} numbers.</b> Check them against your book before betting. Green = read clearly${guessed.length ? ', <span style="color:var(--warn)">yellow / ? = sign was unclear and guessed</span>' : ''}.
+         <ul>${found.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
+         <details><summary class="muted">Text the reader saw</summary><pre>${esc(text)}</pre></details>`
+      : `<b class="neg">Couldn't find odds in that image.</b> Try a tighter crop showing both team names and their lines.
+         <details><summary class="muted">Text the reader saw</summary><pre>${esc(text)}</pre></details>`;
+  } catch (err) {
+    box.innerHTML = `<span class="error">${esc(err.message)}</span>`;
+  }
+}
+
+$('#shot-input').addEventListener('change', (e) => { readScreenshot(e.target.files[0]); e.target.value = ''; });
+const drop = $('#shot-drop');
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); readScreenshot(e.dataTransfer.files[0]); });
+document.addEventListener('paste', (e) => {
+  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+  if (item && state.game) { e.preventDefault(); readScreenshot(item.getAsFile()); }
+});
+
 // ---------------- events ----------------
 
 $('#game-form').addEventListener('submit', (e) => {
@@ -396,7 +453,7 @@ $('#replay-live').addEventListener('click', () => { state.cutoff = null; render(
 $('#autorefresh').addEventListener('change', scheduleRefresh);
 $('#lines').addEventListener('input', (e) => {
   const k = e.target.name; if (!k) return;
-  const base = espnLines()[k];
+  const base = baseLines()[k] ?? null;
   const v = e.target.value;
   if (v === '' && base == null) delete state.lineOverrides[k];
   else if (v !== '' && +v === base) delete state.lineOverrides[k];
