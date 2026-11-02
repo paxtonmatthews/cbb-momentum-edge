@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Backtest · Momentum Edge</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">Momentum<span>Edge</span></a>
+    <nav>
+      <a href="./">Live game</a>
+      <a href="teams.html">Teams</a>
+      <a href="backtest.html" aria-current="page">Backtest</a>
+      <a id="research-link" href="https://github.com/paxtonmatthews/cbb-momentum-edge/blob/main/RESEARCH.md" target="_blank" rel="noopener">Research</a>
+    </nav>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Backtest the model</h2>
+      <p class="muted">Replays finished games and checks the model's projections, made at minute 10, 20, 30, 35 and 38, against the real final scores. Good calibration means the "80% range" column sits near 80%. Lower Brier scores mean better win probabilities.</p>
+      <form id="bt-form" class="lines">
+        <label><span>League</span><select id="league"><option value="mens-college-basketball">Men's</option><option value="womens-college-basketball">Women's</option></select></label>
+        <label><span>Max games</span><input id="max" type="number" value="200" min="20" max="1000"></label>
+        <label><span>From</span><input id="from" type="date" value="2026-02-01"></label>
+        <label><span>To</span><input id="to" type="date" value="2026-02-14"></label>
+        <button id="run" type="submit">Run backtest</button>
+      </form>
+      <p id="log" class="hint"></p>
+      <div class="table-wrap"><table id="results" class="table"></table></div>
+      <p class="hint">This checks projection accuracy, not betting profit. Profit needs historical live odds, which aren't in the free feed.</p>
+    </section>
+  </main>
+  <script type="module" src="js/backtest.js"></script>
+</body>
+</html>

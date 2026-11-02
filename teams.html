@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teams · Momentum Edge</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">Momentum<span>Edge</span></a>
+    <nav>
+      <a href="./">Live game</a>
+      <a href="teams.html" aria-current="page">Teams</a>
+      <a href="backtest.html">Backtest</a>
+      <a id="research-link" href="https://github.com/paxtonmatthews/cbb-momentum-edge/blob/main/RESEARCH.md" target="_blank" rel="noopener">Research</a>
+    </nav>
+  </header>
+  <main>
+    <section id="team" class="card" hidden></section>
+    <section class="card">
+      <div class="card-head">
+        <h2>All Division I teams <span id="count" class="muted small"></span></h2>
+        <div class="filters">
+          <select id="league" aria-label="League">
+            <option value="mens-college-basketball">Men's</option>
+            <option value="womens-college-basketball">Women's</option>
+          </select>
+          <input id="search" type="search" placeholder="Search teams" aria-label="Search teams">
+        </div>
+      </div>
+      <div id="teams" class="teamgrid"><p class="muted">Loading…</p></div>
+    </section>
+  </main>
+  <footer><p class="muted">Data: ESPN public feeds (unofficial). Season stats reset when a new season starts.</p></footer>
+  <script type="module" src="js/teams.js"></script>
+</body>
+</html>

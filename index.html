@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Momentum Edge</title>
+  <meta name="description" content="Paste a college basketball game link. Get live momentum, a projected final score, and the best bet against the line.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">Momentum<span>Edge</span></a>
+    <nav>
+      <a href="./" aria-current="page">Live game</a>
+      <a href="teams.html">Teams</a>
+      <a href="backtest.html">Backtest</a>
+      <a id="research-link" href="https://github.com/paxtonmatthews/cbb-momentum-edge/blob/main/RESEARCH.md" target="_blank" rel="noopener">Research</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Paste a game. Get the best bet.</h1>
+      <p class="sub">Works with any ESPN college basketball game link (men's or women's), or just the game ID.</p>
+      <form id="game-form" class="paste">
+        <input id="game-input" type="text" inputmode="url" autocomplete="off"
+               placeholder="https://www.espn.com/mens-college-basketball/game/_/gameId/401856600/…" aria-label="ESPN game URL or ID">
+        <button type="submit">Analyze</button>
+      </form>
+      <p id="form-error" class="error" hidden></p>
+    </section>
+
+    <section id="game" hidden>
+      <div id="scorebug" class="card scorebug"></div>
+
+      <div class="grid two">
+        <div id="bestbet" class="card bestbet"></div>
+        <div id="momentum" class="card"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Game flow</h2>
+          <label class="toggle"><input type="checkbox" id="autorefresh" checked> Auto-refresh</label>
+        </div>
+        <div id="chart" class="chart"></div>
+        <div class="replay">
+          <label for="replay">Replay</label>
+          <input id="replay" type="range" min="0" max="0" value="0">
+          <span id="replay-label" class="muted"></span>
+          <button id="replay-live" type="button" class="ghost">Go live</button>
+        </div>
+        <p class="hint">Drag to see what the model would have said at any moment. On finished games it grades the pick.</p>
+      </div>
+
+      <div class="grid two">
+        <div id="projection" class="card"></div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Lines</h2>
+            <button id="lines-reset" type="button" class="ghost">Reset to ESPN</button>
+          </div>
+          <p id="lines-note" class="note"></p>
+          <form id="lines" class="lines"></form>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Every bet, ranked</h2>
+        <div class="table-wrap"><table id="options" class="table"></table></div>
+      </div>
+
+      <div class="grid two">
+        <div id="why" class="card"></div>
+        <div id="shooting" class="card"></div>
+      </div>
+
+      <details class="card settings">
+        <summary>Model settings</summary>
+        <form id="settings" class="lines"></form>
+        <p class="hint">Defaults come from published research. See the Research page for sources.</p>
+      </details>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Games</h2>
+        <div class="filters">
+          <select id="league" aria-label="League">
+            <option value="mens-college-basketball">Men's</option>
+            <option value="womens-college-basketball">Women's</option>
+          </select>
+          <input id="date" type="date" aria-label="Date">
+        </div>
+      </div>
+      <div id="games" class="games"><p class="muted">Loading…</p></div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>For entertainment and research only.</strong> These are model estimates, not guarantees or financial advice. Bet only what you can afford to lose, and only where it's legal for you. Problem gambling help: 1-800-GAMBLER.</p>
+    <p class="muted">Data: ESPN public feeds (unofficial). Not affiliated with ESPN, the NCAA, or any sportsbook.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
